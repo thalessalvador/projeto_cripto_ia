@@ -37,7 +37,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline, Pipeline  # type: ignore
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score  # type: ignore
 
 
 def train_and_evaluate_model(
@@ -109,7 +109,11 @@ def train_and_evaluate_model(
 
     model = model_mapping[model_type]  # type: ignore
     kf = KFold(n_splits=kfolds, shuffle=True, random_state=42)
+    # aplicar_lag é uma função que aplica defasagem (lag) de 1 dia em todas as features para evitar vazamento de dados
+    # e alinha a variável alvo (target) para o dia T, exceto a primeira linha
+    # Isso é necessário para evitar que o modelo use informações futuras ao prever o preço de fechamento
     X_reset, y_reset = X.reset_index(drop=True), y.reset_index(drop=True)  # type: ignore
+    X_reset, y_reset = aplicar_lag(X_reset, y_reset)  # type: ignore
 
     # Separa dados para validação final (hold-out) apenas se test_size > 0. A separação é feita levando em conta separação temporal
     if test_size > 0:
@@ -250,7 +254,11 @@ def compare_models(
 
     results = []
     kf = KFold(n_splits=kfolds, shuffle=True, random_state=42)
+    # aplicar_lag é uma função que aplica defasagem (lag) de 1 dia em todas as features para evitar vazamento de dados
+    # e alinha a variável alvo (target) para o dia T, exceto a primeira linha
+    # Isso é necessário para evitar que o modelo use informações futuras ao prever o preço de fechamento
     X_reset, y_reset = X.reset_index(drop=True), y.reset_index(drop=True)  # type: ignore
+    X_reset, y_reset = aplicar_lag(X_reset, y_reset)  # type: ignore
 
     # Separa os dados para validação real (hold-out), levando em conta a temporalidade e não aleatoriedade
     if test_size > 0:
@@ -572,8 +580,11 @@ def get_best_model_by_mse(  # type: ignore
             n_estimators=n_estimators, random_state=42
         ),
     }
-
+    # aplicar_lag é uma função que aplica defasagem (lag) de 1 dia em todas as features para evitar vazamento de dados
+    # e alinha a variável alvo (target) para o dia T, exceto a primeira linha
+    # Isso é necessário para evitar que o modelo use informações futuras ao prever o preço de fechamento
     X_reset, y_reset = X.reset_index(drop=True), y.reset_index(drop=True)  # type: ignore
+    X_reset, y_reset = aplicar_lag(X_reset, y_reset)
 
     # Divide os dados entre treino e validação (hold-out) levando em conta a separação temporal
     if test_size > 0:
@@ -655,3 +666,22 @@ def limpar_modelos_antigos(pair_name: str, models_folder: str):
         if os.path.exists(caminho):
             os.remove(caminho)
             logging.info(f"Modelo antigo removido: {caminho}")
+
+
+def aplicar_lag(X: pd.DataFrame, y: pd.Series) -> tuple[pd.DataFrame, pd.Series]:  # type: ignore
+    """
+    Aplica defasagem (lag) de 1 dia em todas as features para evitar vazamento de dados.
+
+    Args:
+        X (pd.DataFrame): Conjunto de features (com dados do dia T).
+        y (pd.Series): Variável alvo (preço de fechamento do dia T).
+
+    Returns:
+        Tuple com:
+            - X_lagged (features do dia T-1)
+            - y_alinhado (target do dia T, exceto a primeira linha)
+    """
+    X_lagged = X.shift(1)
+    X_lagged = X_lagged.iloc[1:]
+    y_alinhado = y.iloc[1:]  # type: ignore
+    return X_lagged, y_alinhado  # type: ignore

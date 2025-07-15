@@ -29,6 +29,7 @@ tmp/
 
 # Arquivos de dados gerados
 data/
+grafico/
 
 # Arquivos de cobertura de teste
 .coverage
