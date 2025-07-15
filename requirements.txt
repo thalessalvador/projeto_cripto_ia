@@ -1,0 +1,16 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+statsmodels
+pytest
+pytest-cov
+black
+ruff
+python-dotenv
+pytest
+pytest-cov
+ta
+requests
+pillow

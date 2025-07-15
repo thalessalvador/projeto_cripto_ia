@@ -1,0 +1,47 @@
+# Ignorar arquivos e pastas gerados automaticamente pelo Python e pelo ambiente de desenvolvimento
+
+# Ambientes virtuais
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-code compilado
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Arquivos de distribuição
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Arquivos de log e dados temporários
+*.log
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Arquivos de dados gerados
+data/
+
+# Arquivos de cobertura de teste
+.coverage
+.coverage.*
+htmlcov/ # Pasta gerada pelo pytest-cov
+
+# Arquivos de IDEs e editores
+.vscode/ # Para VS Code
+.idea/ # Para PyCharm
+*.sublime-project
+*.sublime-workspace
+.DS_Store # Para macOS
+
+# Arquivos de Jupyter Notebook
+.ipynb_checkpoints/
+analysis
