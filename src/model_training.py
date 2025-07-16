@@ -10,7 +10,7 @@ previsão de séries temporais financeiras.
 Funcionalidades Principais:
 -   **Suporte a Múltiplos Modelos:** Treina e avalia Regressão Linear,
     Regressão Polinomial, Random Forest e Redes Neurais (MLP Regressor).
--   **Validação Robusta:** Utiliza validação cruzada K-fold para obter
+-   **Validação Robusta:** Utiliza validação cruzada K-fold (no caso alterado pra TimeSeriesSplit) para obter
     métricas de desempenho mais estáveis e um conjunto de hold-out para
     uma avaliação final imparcial.
 -   **Avaliação Abrangente:** Calcula e reporta múltiplas métricas, incluindo
@@ -52,10 +52,10 @@ def train_and_evaluate_model(
     test_size: float = 0.3,
 ):
     """
-    Treina, avalia e salva um único modelo de regressão usando K-fold e hold-out.
+    Treina, avalia e salva um único modelo de regressão usando K-fold (TimeSeriesSplit) e hold-out.
 
     Esta função executa um pipeline completo para um tipo de modelo especificado.
-    Ela realiza a validação cruzada K-fold no conjunto de treino e, em seguida,
+    Ela realiza a validação cruzada K-fold (TimeSeriesSplit) no conjunto de treino e, em seguida,
     avalia o desempenho em um conjunto de validação final (hold-out). Por fim,
     retreina o modelo com todos os dados e o salva em disco.
 
@@ -80,20 +80,30 @@ def train_and_evaluate_model(
         f"Iniciando treino e avaliação do modelo {model_type} para {pair_name}..."
     )
 
+    # MLP com regularização alpha, early_stopoing evita sobreajuste no fim do treino, validation_fraction=0.2 ( quanto do conjunto de treino será separado internamente como validação durante o early_stopping)
+    # Polynomial interaction_only reduz número de termos combinatórios (sempre usar StandadrdScaler antes)
+    # RandomForest max_depht=5, min_samples_leaf=10 Limita a profundidade e exige folhas maiores, max_features="sqrt" evita sobreajuste e reduz correlação entre árvores
     model_mapping = {  # type: ignore
         "MLP": MLPRegressor(
             hidden_layer_sizes=(100, 50),
+            alpha=0.001,  # Regularização L2
             max_iter=1000,
             random_state=42,
             early_stopping=True,
+            validation_fraction=0.2,
             n_iter_no_change=50,
         ),
         "Linear": LinearRegression(),
         "Polynomial": make_pipeline(
-            PolynomialFeatures(degree=poly_degree), LinearRegression()
+            PolynomialFeatures(degree=poly_degree, interaction_only=True),
+            LinearRegression(),
         ),
         "RandomForest": RandomForestRegressor(
-            n_estimators=n_estimators, random_state=42
+            n_estimators=n_estimators,
+            max_depth=5,
+            min_samples_leaf=10,
+            max_features="sqrt",
+            random_state=42,
         ),
     }
 
@@ -216,7 +226,7 @@ def compare_models(
     """
     Compara múltiplos modelos de regressão, exibe métricas e gera gráficos.
 
-    Executa a validação cruzada K-fold para vários modelos, registra uma tabela
+    Executa a validação cruzada K-fold (TimeSeriesSplit) para vários modelos, registra uma tabela
     comparativa de desempenho, identifica o melhor regressor com base no MSE
     médio e gera visualizações para análise.
 
@@ -240,17 +250,24 @@ def compare_models(
     models = {  # type: ignore
         "MLP": MLPRegressor(
             hidden_layer_sizes=(100, 50),
+            alpha=0.001,  # Regularização L2
             max_iter=1000,
             random_state=42,
             early_stopping=True,
+            validation_fraction=0.2,
             n_iter_no_change=50,
         ),
-        "Linear Regression": LinearRegression(),
-        "Polynomial Regression": make_pipeline(
-            PolynomialFeatures(degree=poly_degree), LinearRegression()
+        "Linear": LinearRegression(),
+        "Polynomial": make_pipeline(
+            PolynomialFeatures(degree=poly_degree, interaction_only=True),
+            LinearRegression(),
         ),
-        "Random Forest": RandomForestRegressor(
-            n_estimators=n_estimators, random_state=42
+        "RandomForest": RandomForestRegressor(
+            n_estimators=n_estimators,
+            max_depth=5,
+            min_samples_leaf=10,
+            max_features="sqrt",
+            random_state=42,
         ),
     }
 
@@ -424,7 +441,7 @@ def _plot_scatter_comparison(X, y, models, pair_name, plots_folder):  # type: ig
 
 def plot_scatter_holdout(models, X_val, y_val, pair_name, plots_folder):  # type: ignore
     """
-    Gera um gráfico de dispersão usando o modelo escolhido no treino em k-fold para os dados de hold-out (validação final).
+    Gera um gráfico de dispersão usando o modelo escolhido no treino em k-fold (TimeSeriesSplit) para os dados de hold-out (validação final).
     Avalia o desempenho do modelo em relação aos valores reais do conjunto de validação.
 
     Args:
@@ -534,11 +551,11 @@ def get_best_model_by_mse(  # type: ignore
     test_size: float = 0.3,
 ):
     """
-    Seleciona o melhor modelo de regressão com base em validação cruzada (K-Fold) e avalia seu desempenho em um conjunto de validação (hold-out).
+    Seleciona o melhor modelo de regressão com base em validação cruzada (K-Fold (TimeSeriesSplit)) e avalia seu desempenho em um conjunto de validação (hold-out).
 
     Esta função realiza os seguintes passos:
     1. Separa os dados em treino e validação final (hold-out), usando `test_size`.
-    2. Executa validação cruzada K-Fold apenas no conjunto de treino para estimar o desempenho médio (MSE) de cada modelo.
+    2. Executa validação cruzada K-Fold (TimeSeriesSplit) apenas no conjunto de treino para estimar o desempenho médio (MSE) de cada modelo.
     3. Identifica o modelo com menor MSE médio.
     4. Reajusta o modelo vencedor em todo o conjunto de treino e avalia seu desempenho final nos dados de validação (hold-out), apenas para fins de comparação.
     5. Retorna o modelo final treinado com os dados de treino e seu nome.
@@ -561,7 +578,7 @@ def get_best_model_by_mse(  # type: ignore
         Tuple[RegressorMixin, str]: O modelo treinado (ajustado com os dados de treino) e o nome do modelo.
 
     Efeitos colaterais:
-        - Registra no log os resultados de desempenho médio (K-Fold) e final (hold-out) para cada modelo.
+        - Registra no log os resultados de desempenho médio (K-Fold (TimeSeriesSplit)) e final (hold-out) para cada modelo.
     """
 
     logging.info(
@@ -571,17 +588,24 @@ def get_best_model_by_mse(  # type: ignore
     model_defs = {  # type: ignore
         "MLP": MLPRegressor(
             hidden_layer_sizes=(100, 50),
+            alpha=0.001,  # Regularização L2
             max_iter=1000,
             random_state=42,
             early_stopping=True,
+            validation_fraction=0.2,
             n_iter_no_change=50,
         ),
         "Linear": LinearRegression(),
         "Polynomial": make_pipeline(
-            PolynomialFeatures(degree=poly_degree), LinearRegression()
+            PolynomialFeatures(degree=poly_degree, interaction_only=True),
+            LinearRegression(),
         ),
         "RandomForest": RandomForestRegressor(
-            n_estimators=n_estimators, random_state=42
+            n_estimators=n_estimators,
+            max_depth=5,
+            min_samples_leaf=10,
+            max_features="sqrt",
+            random_state=42,
         ),
     }
     # aplicar_lag é uma função que aplica defasagem (lag) de 1 dia em todas as features para evitar vazamento de dados
@@ -618,7 +642,9 @@ def get_best_model_by_mse(  # type: ignore
                 mse_scores.append(mean_squared_error(y_test, y_pred))  # type: ignore
 
             avg_mse = np.mean(mse_scores)  # type: ignore
-            logging.info(f"[{name}] MSE Médio (K-Fold): {avg_mse:.4f}")
+            logging.info(
+                f"[{name}] MSE Médio (K-Fold (TimeSeriesSplit)): {avg_mse:.4f}"
+            )
 
             if avg_mse < best_mse:
                 best_mse = avg_mse
