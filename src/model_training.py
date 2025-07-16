@@ -31,7 +31,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.model_selection import train_test_split, KFold  # type: ignore
+from sklearn.model_selection import train_test_split, TimeSeriesSplit  # type: ignore
 from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
@@ -108,7 +108,9 @@ def train_and_evaluate_model(
         return
 
     model = model_mapping[model_type]  # type: ignore
-    kf = KFold(n_splits=kfolds, shuffle=True, random_state=42)
+    # alterada a função Kfold  para TimeSeriesSplit pois para séries temporais elar respeita a ordem dos dados
+    kf = TimeSeriesSplit(n_splits=kfolds)
+
     # aplicar_lag é uma função que aplica defasagem (lag) de 1 dia em todas as features para evitar vazamento de dados
     # e alinha a variável alvo (target) para o dia T, exceto a primeira linha
     # Isso é necessário para evitar que o modelo use informações futuras ao prever o preço de fechamento
@@ -253,7 +255,9 @@ def compare_models(
     }
 
     results = []
-    kf = KFold(n_splits=kfolds, shuffle=True, random_state=42)
+    # alterada a função Kfold  para TimeSeriesSplit pois para séries temporais elar respeita a ordem dos dados
+    kf = TimeSeriesSplit(n_splits=kfolds)
+
     # aplicar_lag é uma função que aplica defasagem (lag) de 1 dia em todas as features para evitar vazamento de dados
     # e alinha a variável alvo (target) para o dia T, exceto a primeira linha
     # Isso é necessário para evitar que o modelo use informações futuras ao prever o preço de fechamento
@@ -584,7 +588,7 @@ def get_best_model_by_mse(  # type: ignore
     # e alinha a variável alvo (target) para o dia T, exceto a primeira linha
     # Isso é necessário para evitar que o modelo use informações futuras ao prever o preço de fechamento
     X_reset, y_reset = X.reset_index(drop=True), y.reset_index(drop=True)  # type: ignore
-    X_reset, y_reset = aplicar_lag(X_reset, y_reset)
+    X_reset, y_reset = aplicar_lag(X_reset, y_reset)  # type: ignore
 
     # Divide os dados entre treino e validação (hold-out) levando em conta a separação temporal
     if test_size > 0:
@@ -600,8 +604,8 @@ def get_best_model_by_mse(  # type: ignore
     best_name = None
     best_mse = float("inf")
 
-    # Avalia os modelos usando apenas os dados de treino (K-Fold)
-    kf = KFold(n_splits=kfolds, shuffle=True, random_state=42)
+    # alterada a função Kfold  para TimeSeriesSplit pois para séries temporais elar respeita a ordem dos dados
+    kf = TimeSeriesSplit(n_splits=kfolds)
 
     for name, model in model_defs.items():  # type: ignore
         try:
