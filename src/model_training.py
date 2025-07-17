@@ -247,6 +247,9 @@ def compare_models(
     """
     logging.info(f"Comparando modelos para {pair_name}...")
 
+    # MLP com regularização alpha, early_stopoing evita sobreajuste no fim do treino, validation_fraction=0.2 ( quanto do conjunto de treino será separado internamente como validação durante o early_stopping)
+    # Polynomial interaction_only reduz número de termos combinatórios (sempre usar StandadrdScaler antes)
+    # RandomForest max_depht=5, min_samples_leaf=10 Limita a profundidade e exige folhas maiores, max_features="sqrt" evita sobreajuste e reduz correlação entre árvores
     models = {  # type: ignore
         "MLP": MLPRegressor(
             hidden_layer_sizes=(100, 50),
@@ -584,7 +587,9 @@ def get_best_model_by_mse(  # type: ignore
     logging.info(
         "Executando seleção automática do melhor modelo com base em MSE (com hold-out)..."
     )
-
+    # MLP com regularização alpha, early_stopoing evita sobreajuste no fim do treino, validation_fraction=0.2 ( quanto do conjunto de treino será separado internamente como validação durante o early_stopping)
+    # Polynomial interaction_only reduz número de termos combinatórios (sempre usar StandadrdScaler antes)
+    # RandomForest max_depht=5, min_samples_leaf=10 Limita a profundidade e exige folhas maiores, max_features="sqrt" evita sobreajuste e reduz correlação entre árvores
     model_defs = {  # type: ignore
         "MLP": MLPRegressor(
             hidden_layer_sizes=(100, 50),

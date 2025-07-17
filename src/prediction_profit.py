@@ -142,12 +142,26 @@ def simulate_investment_and_profit(
             )
             continue
 
-        X = data_df[trained_features]  # type: ignore
-        all_predictions = model.predict(X)  # type: ignore
+        # Passo 1: Aplica lag nas features (usa dados de T-1 para prever T)
+        X = data_df[trained_features].shift(1)
 
-        last_known_price = data_df["close"].shift(1).fillna(0)  # type: ignore
-        signals = np.where(all_predictions > last_known_price, 1, 0)  # type: ignore
-        signals = pd.Series(signals, index=data_df.index).shift(1).fillna(0)  # type: ignore
+        # Remove primeiras linhas com NaN (causadas pelo shift)
+        X = X.dropna()
+
+        # Alinha todo o restante dos dados com X defasado
+        data_df = data_df.loc[X.index]
+
+        # Fazer as previsões
+        all_predictions = model.predict(X)
+
+        # Preço conhecido anterior (dia T-1)
+        last_known_price = data_df["close"].shift(1).fillna(0)
+
+        # Gera sinal: compra se previsão > preço conhecido anterior
+        signals = np.where(all_predictions > last_known_price, 1, 0)
+
+        # Aplica o sinal a partir do dia seguinte (não sabemos o resultado no mesmo dia)
+        signals = pd.Series(signals, index=data_df.index).shift(1).fillna(0)
 
         daily_returns = data_df["close"].pct_change().fillna(0)  # type: ignore
 
@@ -157,6 +171,11 @@ def simulate_investment_and_profit(
 
         profit_evolution[f"balance_{model_key}"] = (
             initial_investment * cumulative_returns
+        )
+        final_balance = profit_evolution[f"balance_{model_key}"].iloc[-1]
+        lucro_total = final_balance - initial_investment
+        logging.info(
+            f"[{pair_name} - {model_key.upper()}] Saldo final: ${final_balance:.2f} | Lucro: ${lucro_total:.2f}"
         )
 
     plt.figure(figsize=(16, 9))  # type: ignore
